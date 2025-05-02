@@ -36,3 +36,5 @@ export const enrollInCourse = async (courseId, studentId) => {
     { withCredentials: true }
   );
 };
+
+

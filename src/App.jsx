@@ -5,7 +5,7 @@ import Login from './components/Login';
 import Dashboard from './pages/Dashboard';
 import Home from './pages/Home'
 import ProtectedRoute from './components/ProtectedRoute';
-import SessionCompletion from './pages/SessionCompletion';
+
 
 function App() {
   return (
@@ -22,7 +22,8 @@ function App() {
           }
         />
         <Route path="/" element={<Home/>} />
-        <Route path="/SessionCompletion/:courseId/:sessionId" element={<SessionCompletion />} />
+   
+        
       </Routes>
     </Router>
   );

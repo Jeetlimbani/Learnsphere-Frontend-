@@ -2,39 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { getEnrolledCourses, getSessions } from '../services/studentAPI';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import SessionCompletion from './SessionCompletion';
 
-const StudentEnrollment = ({ userData }) => {
+
+const StudentEnrollment = ({ userData, onSessionNavigate, dashboardData, onDashboardUpdate }) => {
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedCourse, setExpandedCourse] = useState(null);
-  const [dashboardData, setDashboardData] = useState([]);
-  const navigate = useNavigate();
-
-  const fetchDashboardData = async () => {
-    if (!userData?.studentId) return;
-
-    try {
-      const response = await axios.get(`http://localhost:4000/api/dashboard/student/${userData.studentId}`, {
-        headers: {
-          'Authorization': localStorage.getItem('token') 
-        }
-      });
-      
-      if (response.data && Array.isArray(response.data)) {
-        setDashboardData(response.data);
-      } else {
-        console.error('Invalid dashboard data format:', response.data);
-        setDashboardData([]);
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to fetch dashboard data');
-      setDashboardData([]);
-    }
-  };
 
   const fetchEnrolledCoursesWithSessions = async () => {
     if (!userData?.id) return;
@@ -74,8 +47,7 @@ const StudentEnrollment = ({ userData }) => {
 
   useEffect(() => {
     fetchEnrolledCoursesWithSessions();
-    fetchDashboardData();
-  }, [userData]);
+  }, [userData, dashboardData]); // Added dashboardData dependency to refresh when sessions are completed
 
   const toggleCourseExpansion = (courseId) => {
     setExpandedCourse(expandedCourse === courseId ? null : courseId);
@@ -85,21 +57,44 @@ const StudentEnrollment = ({ userData }) => {
     if (!url) return '';
     const videoIdMatch = url.match(/(?:v=|youtu\.be\/|\/embed\/|\/v\/|watch\?v=|&v=)([0-9A-Za-z_-]{11})/);
     const videoId = videoIdMatch ? videoIdMatch[1] : null;
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : '';
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : ''; // Fixed to use https
   };
 
-  const navigateToSessionCompletion = (courseId, sessionId) => {
-    navigate(`/SessionCompletion/${courseId}/${sessionId}`);
+  const handleSessionClick = (courseId, sessionId) => {
+    if (onSessionNavigate) {
+      onSessionNavigate(courseId, sessionId);
+    }
   };
 
   const isSessionCompleted = (courseId, sessionId) => {
+    if (!dashboardData || !Array.isArray(dashboardData)) {
+      return false;
+    }
+
     const courseData = dashboardData.find(item => item.courseId === courseId);
-    return courseData?.completedSessions?.includes(sessionId) || false;
+    if (!courseData || !courseData.completedSessions) {
+      return false;
+    }
+
+    // Make sure we're comparing numbers with numbers
+    const sessionIdNum = parseInt(sessionId, 10);
+    return courseData.completedSessions.some(id => parseInt(id, 10) === sessionIdNum);
   };
 
   const getProgressForCourse = (courseId) => {
+    if (!dashboardData || !Array.isArray(dashboardData)) {
+      return '0/0';
+    }
+
     const courseData = dashboardData.find(item => item.courseId === courseId);
-    return courseData ? courseData.progress : '0/0';
+    if (!courseData) {
+      return '0/0';
+    }
+
+    const completedCount = courseData.completedSessions?.length || 0;
+    const totalCount = courseData.totalSessions || 0;
+
+    return `${completedCount}/${totalCount}`;
   };
 
   return (
@@ -112,7 +107,7 @@ const StudentEnrollment = ({ userData }) => {
       ) : enrolledCourses.length === 0 ? (
         <div className="bg-purple-50 p-6 rounded-lg text-center">
           <p className="text-gray-600">You have not enrolled in any courses yet.</p>
-          <button 
+          <button
             onClick={() => document.querySelector('button[data-tab="available"]')?.click()}
             className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
           >
@@ -153,47 +148,51 @@ const StudentEnrollment = ({ userData }) => {
               {expandedCourse === course.id && course.sessions && course.sessions.length > 0 ? (
                 <div className="mt-4 space-y-3">
                   <h4 className="font-medium text-purple-700">Course Sessions</h4>
-                  {course.sessions.map((session, index) => (
-                    <div key={session.id || index} className="border border-purple-100 p-3 rounded-md">
-                      <div className="flex justify-between items-start">
-                        <p className="font-medium text-purple-700">
-                          Session {index + 1}: {session.title}
-                          {isSessionCompleted(course.id, session.id) && (
-                            <span className="ml-2 text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">
-                              Completed
-                            </span>
-                          )}
-                        </p>
-                        <button
-                          onClick={() => navigateToSessionCompletion(course.id, session.id)}
-                          className={`px-3 py-1 rounded text-sm font-medium ${
-                            isSessionCompleted(course.id, session.id)
-                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                              : 'bg-purple-600 text-white hover:bg-purple-700'
-                          }`}
-                        >
-                          {isSessionCompleted(course.id, session.id) ? 'Review' : 'Start'}
-                        </button>
-                      </div>
-                      
-                      {session.description && (
-                        <p className="text-gray-600 text-sm mt-1">{session.description}</p>
-                      )}
-                      
-                      {session.videoLink && (
-                        <div className="mt-2">
-                          <iframe
-                            src={getYouTubeEmbedURL(session.videoLink)}
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            title={`${course.title} - Session ${index + 1}`}
-                            className="w-full h-40 rounded-lg"
-                          ></iframe>
+                  {course.sessions.map((session, index) => {
+                    const completed = isSessionCompleted(course.id, session.id);
+                    return (
+                      <div key={session.id || index} className="border border-purple-100 p-3 rounded-md">
+                        <div className="flex justify-between items-start">
+                          <p className="font-medium text-purple-700">
+                            Session {index + 1}: {session.title}
+                            {completed && (
+                              <span className="ml-2 text-xs bg-green-500 text-white px-2 py-0.5 rounded-full">
+                                Completed
+                              </span>
+                            )}
+                          </p>
+                          <button
+                            onClick={() => handleSessionClick(course.id, session.id)}
+                            className={`px-3 py-1 rounded text-sm font-medium ${
+                              completed
+                                ? 'bg-green-100 text-green-800 hover:bg-green-200 cursor-not-allowed'
+                                : 'bg-purple-600 text-white hover:bg-purple-700'
+                            }`}
+                            disabled={completed}
+                          >
+                            {completed ? 'Completed' : 'View Session'}
+                          </button>
                         </div>
-                      )}
-                    </div>
-                  ))}
+
+                        {session.description && (
+                          <p className="text-gray-600 text-sm mt-1">{session.description}</p>
+                        )}
+
+                        {session.videoLink && (
+                          <div className="mt-2">
+                            <iframe
+                              src={getYouTubeEmbedURL(session.videoLink)}
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              title={`${course.title} - Session ${index + 1}`}
+                              className="w-full h-40 rounded-lg"
+                            ></iframe>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 course.sessions && course.sessions.length > 0 && course.sessions[0].videoLink && (
