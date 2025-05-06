@@ -9,7 +9,6 @@ const InstructorLayout = ({ userData }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedCourse, setSelectedCourse] = useState(null);
   const navigate = useNavigate();
-
   const handleViewSessions = (course) => {
     setSelectedCourse(course);
     setActiveTab('sessions');

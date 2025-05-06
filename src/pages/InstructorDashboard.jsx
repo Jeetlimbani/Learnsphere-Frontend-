@@ -14,6 +14,7 @@ const InstructorDashboard = ({ userData, onViewSessions }) => {
   const [newCourse, setNewCourse] = useState({ title: '', description: '', category: '' });
   const [editingCourse, setEditingCourse] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Fetch courses
   const fetchCourses = async () => {
@@ -101,6 +102,17 @@ const InstructorDashboard = ({ userData, onViewSessions }) => {
     }
   };
 
+   // Handle search input change
+   const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // Filter courses based on search term
+  const filteredCourses = courses.filter(
+    (course) =>
+      course.title.toLowerCase().includes(searchTerm.toLowerCase()) 
+  );
+
   // Calculate total sessions
   const totalSessions = courses.reduce((acc, course) => acc + (course.sessions?.length || 0), 0);
 
@@ -186,19 +198,43 @@ const InstructorDashboard = ({ userData, onViewSessions }) => {
             </div>
           </div>
 
-          {/* Courses List */}
-          <div className="lg:w-2/3">
+                  {/* Courses List */}
+                  <div className="lg:w-2/3">
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Your Courses</h2>
-              {courses.length === 0 ? (
-                <p className="text-gray-500">No courses added yet.</p>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Your Courses</h2>
+                
+                {/* Search Input */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search courses..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className="border rounded-lg pl-8 pr-4 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {filteredCourses.length === 0 ? (
+                <p className="text-gray-500">
+                  {searchTerm ? 'No courses match your search.' : 'No courses added yet.'}
+                </p>
               ) : (
                 <ul>
-                  {courses.map((course) => (
+                  {filteredCourses.map((course) => (
                     <li key={course.id} className="border-b py-3 flex justify-between items-center">
                       <div>
                         <p className="font-medium">{course.title}</p>
                         <p className="text-sm text-gray-600">{course.description}</p>
+                        <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded mt-1">
+                          {course.category}
+                        </span>
                       </div>
                       <div className="space-x-2">
                         <button
