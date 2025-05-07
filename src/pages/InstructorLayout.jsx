@@ -83,4 +83,3 @@ const InstructorLayout = ({ userData }) => {
 };
 
 export default InstructorLayout;
-
